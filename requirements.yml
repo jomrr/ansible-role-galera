@@ -1,0 +1,9 @@
+---
+# role: galera
+# file: requirements.yml
+
+roles:
+  - name: jomrr.mariadb
+    src: https://github.com/jomrr/ansible-role-mariadb.git
+    scm: git
+    version: main

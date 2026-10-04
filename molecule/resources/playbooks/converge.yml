@@ -1,0 +1,12 @@
+---
+# role: galera
+# file: molecule/resources/playbooks/converge.yml
+
+- name: GALERA | Converge cluster members sequentially
+  hosts: all
+  gather_facts: true
+  strategy: linear
+  serial: 1
+  any_errors_fatal: true
+  roles:
+    - role: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}"

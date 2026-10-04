@@ -1,0 +1,47 @@
+---
+# role: galera
+# file: tasks/assert.yml
+
+- name: GALERA | Require one node per batch and valid cluster identifiers
+  ansible.builtin.assert:
+    that:
+      - ansible_play_batch | length == 1
+      - mariadb_service | default('mariadb') == 'mariadb'
+      - galera_cluster_name is match('^[A-Za-z0-9_.-]+$')
+      - galera_node_name is match('^[A-Za-z0-9_.-]+$')
+      - galera_node_address is match('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
+      - galera_node_address.split('.') | map('int') | max <= 255
+      - galera_node_address.split('.')[0] | int not in [0, 127]
+      - galera_cluster_members | length > 0
+      - galera_cluster_members | unique | length == galera_cluster_members | length
+      - galera_gcache_size is match('^[1-9][0-9]*[KMG]$')
+      - galera_sst_donor is match('^(?:[A-Za-z0-9_.-]+(?:,[A-Za-z0-9_.-]+)*,?)?$')
+    fail_msg: >-
+      Use serial 1, the mariadb service, nonempty unique seeds, valid cluster and node identifiers, a reachable IPv4 node address,
+      a positive cache size with K/M/G suffix and comma-separated donor names.
+    quiet: true
+
+- name: GALERA | Validate cluster seed addresses
+  ansible.builtin.assert:
+    that:
+      - __galera_member is match('^[A-Za-z0-9][A-Za-z0-9.-]*$')
+    fail_msg: Cluster seeds must be IPv4 addresses or DNS names without ports, whitespace or option delimiters.
+    quiet: true
+  loop: "{{ galera_cluster_members }}"
+  loop_control:
+    loop_var: __galera_member
+    label: "{{ __galera_member }}"
+
+- name: GALERA | Validate paths embedded in provider TLS options
+  ansible.builtin.assert:
+    that:
+      - __galera_tls_path is match('^/[A-Za-z0-9_./-]+$')
+    fail_msg: TLS paths must be absolute and contain no whitespace, quotes or provider option delimiters.
+    quiet: true
+  loop:
+    - "{{ galera_tls_ca_file }}"
+    - "{{ galera_tls_cert_file }}"
+    - "{{ galera_tls_key_file }}"
+  loop_control:
+    loop_var: __galera_tls_path
+    label: "{{ __galera_tls_path }}"

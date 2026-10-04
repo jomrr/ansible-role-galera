@@ -1,0 +1,126 @@
+---
+# role: galera
+# file: molecule/resources/playbooks/prepare.yml
+
+- name: GALERA | Gather node addresses for disposable certificates
+  hosts: all
+  gather_facts: true
+
+- name: GALERA | Create disposable cluster credentials
+  hosts: localhost
+  gather_facts: false
+  vars:
+    __galera_fixture_dir: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tls"
+  tasks:
+    - name: GALERA | Create the TLS fixture directory
+      ansible.builtin.file:
+        path: "{{ __galera_fixture_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: GALERA | Generate the disposable cluster key
+      community.crypto.openssl_privatekey:
+        path: "{{ __galera_fixture_dir }}/cluster.key"
+        type: RSA
+        size: 2048
+        mode: '0600'
+
+    - name: GALERA | Create the disposable certificate request
+      community.crypto.openssl_csr:
+        path: "{{ __galera_fixture_dir }}/cluster.csr"
+        privatekey_path: "{{ __galera_fixture_dir }}/cluster.key"
+        common_name: molecule-galera
+        basic_constraints: ['CA:TRUE']
+        key_usage: [digitalSignature, keyEncipherment, keyCertSign]
+        extended_key_usage: [serverAuth, clientAuth]
+        mode: '0600'
+
+    - name: GALERA | Sign the disposable cluster certificate
+      community.crypto.x509_certificate:
+        path: "{{ __galera_fixture_dir }}/cluster.crt"
+        privatekey_path: "{{ __galera_fixture_dir }}/cluster.key"
+        csr_path: "{{ __galera_fixture_dir }}/cluster.csr"
+        provider: selfsigned
+        selfsigned_not_after: '+1d'
+        mode: '0644'
+
+    - name: GALERA | Generate node private keys
+      community.crypto.openssl_privatekey:
+        path: "{{ __galera_fixture_dir }}/{{ __galera_host }}.key"
+        type: RSA
+        size: 2048
+        mode: '0600'
+      loop: "{{ groups['all'] }}"
+      loop_control:
+        loop_var: __galera_host
+        label: "{{ __galera_host }}"
+
+    - name: GALERA | Create node certificate requests with their SST addresses
+      community.crypto.openssl_csr:
+        path: "{{ __galera_fixture_dir }}/{{ __galera_host }}.csr"
+        privatekey_path: "{{ __galera_fixture_dir }}/{{ __galera_host }}.key"
+        common_name: "{{ __galera_host }}"
+        subject_alt_name: ["IP:{{ hostvars[__galera_host].galera_node_address }}"]
+        extended_key_usage: [serverAuth, clientAuth]
+        mode: '0600'
+      loop: "{{ groups['all'] }}"
+      loop_control:
+        loop_var: __galera_host
+        label: "{{ __galera_host }}"
+
+    - name: GALERA | Sign node certificates with the disposable cluster CA
+      community.crypto.x509_certificate:
+        path: "{{ __galera_fixture_dir }}/{{ __galera_host }}.crt"
+        csr_path: "{{ __galera_fixture_dir }}/{{ __galera_host }}.csr"
+        ownca_path: "{{ __galera_fixture_dir }}/cluster.crt"
+        ownca_privatekey_path: "{{ __galera_fixture_dir }}/cluster.key"
+        provider: ownca
+        ownca_not_after: '+1d'
+        mode: '0644'
+      loop: "{{ groups['all'] }}"
+      loop_control:
+        loop_var: __galera_host
+        label: "{{ __galera_host }}"
+
+- name: GALERA | Prepare distribution packages and TLS fixtures
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: GALERA | Refresh APT package metadata
+      become: true
+      become_user: root
+      ansible.builtin.apt:
+        update_cache: true
+      when: ansible_facts.pkg_mgr == 'apt'
+
+    - name: GALERA | Install MariaDB before provisioning service-owned keys
+      ansible.builtin.include_role:
+        name: jomrr.mariadb
+
+    - name: GALERA | Create the service TLS directory
+      become: true
+      become_user: root
+      ansible.builtin.file:
+        path: /etc/galera-tls
+        state: directory
+        owner: root
+        group: mysql
+        mode: '0750'
+
+    - name: GALERA | Deploy disposable cluster credentials
+      become: true
+      become_user: root
+      ansible.builtin.copy:
+        src: "{{ lookup('ansible.builtin.env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/tls/{{ __galera_credential.src }}"
+        dest: "/etc/galera-tls/{{ __galera_credential.dest }}"
+        owner: root
+        group: mysql
+        mode: '0640'
+      loop:
+        - {src: cluster.crt, dest: ca.crt}
+        - {src: '{{ inventory_hostname }}.crt', dest: node.crt}
+        - {src: '{{ inventory_hostname }}.key', dest: node.key}
+      loop_control:
+        loop_var: __galera_credential
+        label: "{{ __galera_credential.dest }}"
+      no_log: true

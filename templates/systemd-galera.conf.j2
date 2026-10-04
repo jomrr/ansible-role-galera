@@ -1,0 +1,7 @@
+# Managed by ansible.
+# file: {{ template_destpath }}
+
+[Service]
+EnvironmentFile=-/run/mariadb/wsrep-new-cluster
+ExecStart=
+ExecStart=/usr/sbin/mariadbd --defaults-file=/etc/my.cnf --user=mysql --socket={{ __galera_socket }} $_WSREP_NEW_CLUSTER

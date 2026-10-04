@@ -1,0 +1,9 @@
+---
+# role: galera
+# file: vars/Debian.yml
+
+__galera_packages: [galera-4, mariadb-backup]
+__galera_provider: /usr/lib/galera/libgalera_smm.so
+__galera_config_file: /etc/mysql/mariadb.conf.d/99-galera.cnf
+__galera_socket: /run/mysqld/mysqld.sock
+__galera_validate_config: /usr/sbin/mariadbd --defaults-file=%s --verbose --help

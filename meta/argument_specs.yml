@@ -1,0 +1,79 @@
+---
+# role: galera
+# file: meta/argument_specs.yml
+
+argument_specs:
+  main:
+    short_description: Configure a MariaDB Galera cluster.
+    description:
+      - Installs MariaDB through jomrr.mariadb and configures Galera with mariabackup state
+        transfers.
+      - Requires existing TLS credentials and serial execution with one node per batch.
+      - Bootstraps only an explicitly selected node without an existing Galera state file.
+    options:
+      galera_backup:
+        type: bool
+        default: true
+        description:
+          - Back up the previous Galera configuration before replacing it, including the
+            distribution file on RPM systems.
+      galera_cluster_name:
+        type: str
+        required: true
+        description:
+          - Shared cluster identifier containing letters, digits, dots, underscores or hyphens.
+      galera_cluster_members:
+        type: list
+        elements: str
+        required: true
+        description:
+          - Nonempty list of cluster seed IPv4 addresses or DNS names, without ports. Never
+            use an empty gcomm address.
+      galera_node_address:
+        type: str
+        required: true
+        description:
+          - Local IPv4 address reachable by every cluster member for replication, IST and
+            SST.
+      galera_node_name:
+        type: str
+        default: '{{ inventory_hostname }}'
+        description:
+          - Unique node identifier; defaults to the inventory hostname.
+      galera_bootstrap:
+        type: bool
+        default: false
+        description:
+          - Explicitly initialize a new cluster on this node only if no grastate.dat exists.
+            Not a disaster recovery switch.
+      galera_tls_ca_file:
+        type: path
+        required: true
+        description:
+          - Existing PEM CA bundle trusted by all nodes, readable by mysql. Absolute path
+            without whitespace or option delimiters.
+      galera_tls_cert_file:
+        type: path
+        required: true
+        description:
+          - Existing PEM certificate with server and client TLS usage and galera_node_address
+            as an IP subject alternative name.
+          - Must be signed by the cluster CA and readable by mysql.
+      galera_tls_key_file:
+        type: path
+        required: true
+        description:
+          - Existing unencrypted PEM private key, restricted to root and mysql. Absolute
+            path without whitespace or option delimiters.
+      galera_gcache_size:
+        type: str
+        default: 128M
+        description:
+          - Galera write-set cache size with a K, M or G suffix. Changing it restarts the
+            node.
+      galera_sst_donor:
+        type: str
+        default: ''
+        description:
+          - Comma-separated preferred node names. A trailing comma permits other donors;
+            empty selects any suitable donor.

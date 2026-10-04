@@ -1,0 +1,305 @@
+---
+# role: galera
+# file: molecule/dev/molecule.yml
+
+dependency:
+  name: "galaxy"
+  options:
+    requirements-file: "${MOLECULE_PROJECT_DIRECTORY}/collections.yml"
+    role-file: "${MOLECULE_PROJECT_DIRECTORY}/requirements.yml"
+driver:
+  name: "podman"
+provisioner:
+  name: "ansible"
+  config_options:
+    defaults:
+      forks: 8
+      interpreter_python: "auto_silent"
+      callbacks_enabled: "ansible.builtin.default"
+      callback_result_format: "yaml"
+      display_ok_hosts: false
+      display_skipped_hosts: false
+      show_task_path_on_failure: true
+    connection:
+      pipelining: true
+  inventory:
+    group_vars:
+      all:
+        ansible_podman_mount_detection: false
+        galera_cluster_name: "{{ group_names[0] }}"
+        galera_cluster_members: "{{ groups[group_names[0]] }}"
+        galera_node_address: "{{ ansible_facts.default_ipv4.address }}"
+        galera_tls_ca_file: "/etc/galera-tls/ca.crt"
+        galera_tls_cert_file: "/etc/galera-tls/node.crt"
+        galera_tls_key_file: "/etc/galera-tls/node.key"
+    host_vars:
+      almalinux-galera-1:
+        galera_bootstrap: true
+      debian-galera-1:
+        galera_bootstrap: true
+      fedora-galera-1:
+        galera_bootstrap: true
+      opensuse-leap-galera-1:
+        galera_bootstrap: true
+      opensuse-tumbleweed-galera-1:
+        galera_bootstrap: true
+      ubuntu-galera-1:
+        galera_bootstrap: true
+  log: true
+  playbooks:
+    prepare: "../resources/playbooks/prepare.yml"
+    converge: "../resources/playbooks/converge.yml"
+    verify: "../resources/playbooks/verify.yml"
+    side_effect: "../resources/playbooks/side_effect.yml"
+verifier:
+  name: "ansible"
+scenario:
+  test_sequence:
+    - "dependency"
+    - "destroy"
+    - "syntax"
+    - "create"
+    - "prepare"
+    - "converge"
+    - "idempotence"
+    - "check"
+    - "verify"
+    - "side_effect"
+    - "verify"
+    - "destroy"
+  name: "dev"
+platforms:
+  - name: "almalinux-galera-1"
+    image: "docker.io/jomrr/molecule-almalinux:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_almalinux"
+  - name: "almalinux-galera-2"
+    image: "docker.io/jomrr/molecule-almalinux:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_almalinux"
+  - name: "almalinux-galera-3"
+    image: "docker.io/jomrr/molecule-almalinux:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_almalinux"
+  - name: "debian-galera-1"
+    image: "docker.io/jomrr/molecule-debian:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_debian"
+  - name: "debian-galera-2"
+    image: "docker.io/jomrr/molecule-debian:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_debian"
+  - name: "debian-galera-3"
+    image: "docker.io/jomrr/molecule-debian:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_debian"
+  - name: "fedora-galera-1"
+    image: "docker.io/jomrr/molecule-fedora:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_fedora"
+  - name: "fedora-galera-2"
+    image: "docker.io/jomrr/molecule-fedora:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_fedora"
+  - name: "fedora-galera-3"
+    image: "docker.io/jomrr/molecule-fedora:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_fedora"
+  - name: "opensuse-leap-galera-1"
+    image: "docker.io/jomrr/molecule-opensuse-leap:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_opensuse_leap"
+  - name: "opensuse-leap-galera-2"
+    image: "docker.io/jomrr/molecule-opensuse-leap:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_opensuse_leap"
+  - name: "opensuse-leap-galera-3"
+    image: "docker.io/jomrr/molecule-opensuse-leap:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_opensuse_leap"
+  - name: "opensuse-tumbleweed-galera-1"
+    image: "docker.io/jomrr/molecule-opensuse-tumbleweed:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_opensuse_tumbleweed"
+  - name: "opensuse-tumbleweed-galera-2"
+    image: "docker.io/jomrr/molecule-opensuse-tumbleweed:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_opensuse_tumbleweed"
+  - name: "opensuse-tumbleweed-galera-3"
+    image: "docker.io/jomrr/molecule-opensuse-tumbleweed:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_opensuse_tumbleweed"
+  - name: "ubuntu-galera-1"
+    image: "docker.io/jomrr/molecule-ubuntu:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_ubuntu"
+  - name: "ubuntu-galera-2"
+    image: "docker.io/jomrr/molecule-ubuntu:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_ubuntu"
+  - name: "ubuntu-galera-3"
+    image: "docker.io/jomrr/molecule-ubuntu:latest"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-dev"
+    groups:
+      - "galera_ubuntu"

@@ -1,0 +1,83 @@
+---
+# role: galera
+# file: molecule/resources/playbooks/verify.yml
+
+- name: GALERA | Verify cluster health and replicated writes
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: GALERA | Load platform socket settings
+      ansible.builtin.include_vars:
+        file: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}/vars/{{ ansible_facts.os_family }}.yml"
+
+    - name: GALERA | Exercise writes on each member
+      module_defaults:
+        group/ansible.mariadb.all:
+          login_user: root
+          login_unix_socket: "{{ __galera_socket }}"
+          config_file: ''
+      block:
+        - name: GALERA | Read cluster status
+          become: true
+          become_user: root
+          ansible.mariadb.mariadb_query:
+            query:
+              - >-
+                SELECT VARIABLE_NAME, VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS
+                WHERE VARIABLE_NAME IN ('WSREP_CLUSTER_SIZE', 'WSREP_CLUSTER_STATUS',
+                'WSREP_LOCAL_STATE_COMMENT', 'WSREP_READY') ORDER BY VARIABLE_NAME
+              - >-
+                SELECT @@wsrep_provider_options AS provider_options, @@wsrep_sst_method AS sst_method,
+                @@bind_address AS bind_address
+          register: __galera_status
+
+        - name: GALERA | Require three synchronized members in the Primary component
+          ansible.builtin.assert:
+            that:
+              - __galera_status.query_result[0] | map(attribute='VARIABLE_VALUE') | list == ['3', 'Primary', 'Synced', 'ON']
+              - "'socket.ssl = yes' in __galera_status.query_result[1][0].provider_options | lower"
+              - __galera_status.query_result[1][0].sst_method == 'mariabackup'
+              - __galera_status.query_result[1][0].bind_address == '127.0.0.1'
+            quiet: true
+
+        - name: GALERA | Create a replicated probe database on the initial node
+          become: true
+          become_user: root
+          ansible.mariadb.mariadb_db:
+            name: galera_probe
+            state: present
+          when: galera_bootstrap | default(false)
+
+        - name: GALERA | Create a replicated InnoDB table on the initial node
+          become: true
+          become_user: root
+          ansible.mariadb.mariadb_query:
+            query: CREATE TABLE IF NOT EXISTS galera_probe.writers (name VARCHAR(128) PRIMARY KEY) ENGINE=InnoDB
+          when: galera_bootstrap | default(false)
+
+        - name: GALERA | Write through every cluster member
+          become: true
+          become_user: root
+          ansible.mariadb.mariadb_query:
+            session_vars:
+              wsrep_sync_wait: 1
+            query: INSERT IGNORE INTO galera_probe.writers (name) VALUES (%s)
+            positional_args: ["{{ inventory_hostname }}"]
+
+        - name: GALERA | Read replicated writes from every member
+          become: true
+          become_user: root
+          ansible.mariadb.mariadb_query:
+            session_vars:
+              wsrep_sync_wait: 1
+            query: SELECT name FROM galera_probe.writers ORDER BY name
+          register: __galera_rows
+          until: __galera_rows.query_result[0] | length == 3
+          retries: 20
+          delay: 2
+
+        - name: GALERA | Verify all writers are visible on each node
+          ansible.builtin.assert:
+            that:
+              - __galera_rows.query_result[0] | map(attribute='name') | sort == groups[group_names[0]] | sort
+            quiet: true

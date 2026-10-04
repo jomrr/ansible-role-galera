@@ -1,0 +1,97 @@
+---
+# role: galera
+# file: molecule/default/molecule.yml
+
+dependency:
+  name: "galaxy"
+  options:
+    requirements-file: "${MOLECULE_PROJECT_DIRECTORY}/collections.yml"
+    role-file: "${MOLECULE_PROJECT_DIRECTORY}/requirements.yml"
+driver:
+  name: "podman"
+provisioner:
+  name: "ansible"
+  config_options:
+    defaults:
+      forks: 8
+      interpreter_python: "auto_silent"
+      callbacks_enabled: "ansible.posix.profile_tasks,ansible.posix.timer"
+      callback_result_format: "yaml"
+    connection:
+      pipelining: true
+  inventory:
+    group_vars:
+      all:
+        ansible_podman_mount_detection: false
+        galera_cluster_name: "{{ group_names[0] }}"
+        galera_cluster_members: "{{ groups[group_names[0]] }}"
+        galera_node_address: "{{ ansible_facts.default_ipv4.address }}"
+        galera_tls_ca_file: "/etc/galera-tls/ca.crt"
+        galera_tls_cert_file: "/etc/galera-tls/node.crt"
+        galera_tls_key_file: "/etc/galera-tls/node.key"
+    host_vars:
+      default-galera-1:
+        galera_bootstrap: true
+  log: true
+  playbooks:
+    prepare: "../resources/playbooks/prepare.yml"
+    converge: "../resources/playbooks/converge.yml"
+    verify: "../resources/playbooks/verify.yml"
+    side_effect: "../resources/playbooks/side_effect.yml"
+verifier:
+  name: "ansible"
+scenario:
+  test_sequence:
+    - "dependency"
+    - "destroy"
+    - "syntax"
+    - "create"
+    - "prepare"
+    - "converge"
+    - "idempotence"
+    - "check"
+    - "verify"
+    - "side_effect"
+    - "verify"
+    - "destroy"
+  name: "default"
+platforms:
+  - name: "default-galera-1"
+    image: "docker.io/${uns:-jomrr}/molecule-${img:-fedora}:${tag:-latest}"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-default"
+    groups:
+      - "galera_default"
+  - name: "default-galera-2"
+    image: "docker.io/${uns:-jomrr}/molecule-${img:-fedora}:${tag:-latest}"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-default"
+    groups:
+      - "galera_default"
+  - name: "default-galera-3"
+    image: "docker.io/${uns:-jomrr}/molecule-${img:-fedora}:${tag:-latest}"
+    pre_build_image: true
+    override_command: false
+    systemd: "true"
+    capabilities:
+      - "SYS_ADMIN"
+      - "IPC_LOCK"
+    security_opts:
+      - "label=disable"
+    network: "molecule-galera-default"
+    groups:
+      - "galera_default"

@@ -1,0 +1,24 @@
+# Managed by ansible.
+# file: {{ template_destpath }}
+
+[mysqld]
+wsrep_on = ON
+wsrep_provider = {{ __galera_provider | to_json }}
+wsrep_cluster_name = {{ galera_cluster_name | to_json }}
+wsrep_cluster_address = {{ ('gcomm://' ~ (galera_cluster_members | join(','))) | to_json }}
+wsrep_node_name = {{ galera_node_name | to_json }}
+wsrep_node_address = {{ galera_node_address | to_json }}
+wsrep_provider_options = "gcache.size={{ galera_gcache_size }};socket.ssl=yes;socket.ssl_ca={{ galera_tls_ca_file }};socket.ssl_cert={{ galera_tls_cert_file }};socket.ssl_key={{ galera_tls_key_file }}"
+wsrep_sst_method = mariabackup
+wsrep_sst_auth = mysql:
+wsrep_sst_receive_address = {{ galera_node_address | to_json }}
+wsrep_sst_donor = {{ galera_sst_donor | to_json }}
+binlog_format = ROW
+default_storage_engine = InnoDB
+innodb_autoinc_lock_mode = 2
+
+[sst]
+encrypt = 3
+tca = {{ galera_tls_ca_file | to_json }}
+tcert = {{ galera_tls_cert_file | to_json }}
+tkey = {{ galera_tls_key_file | to_json }}

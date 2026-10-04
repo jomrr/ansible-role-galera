@@ -1,0 +1,9 @@
+---
+# role: galera
+# file: vars/RedHat.yml
+
+__galera_packages: [galera, mariadb-server-galera, mariadb-backup]
+__galera_provider: /usr/lib64/galera/libgalera_smm.so
+__galera_config_file: /etc/my.cnf.d/galera.cnf
+__galera_socket: /var/lib/mysql/mysql.sock
+__galera_validate_config: /usr/libexec/mariadbd --defaults-file=%s --verbose --help

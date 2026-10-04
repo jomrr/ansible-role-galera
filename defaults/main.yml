@@ -1,0 +1,37 @@
+---
+# role: galera
+# file: defaults/main.yml
+
+# Back up the previous Galera configuration before replacing it.
+galera_backup: true
+
+# Shared identifier of the Galera cluster.
+# galera_cluster_name: application
+
+# Seed IPv4 addresses or DNS names reachable by every member.
+# galera_cluster_members: [10.20.30.11, 10.20.30.12, 10.20.30.13]
+
+# Local IPv4 address used for replication and state transfers.
+# galera_node_address: 10.20.30.11
+
+# Unique node identifier advertised to the cluster.
+galera_node_name: "{{ inventory_hostname }}"
+
+# Initialize a new cluster only on the designated node without a Galera state file.
+galera_bootstrap: false
+
+# Existing CA bundle trusted by every cluster member and readable by mysql.
+# galera_tls_ca_file: /etc/mysql/tls/ca.crt
+
+# Existing node certificate with the node IP SAN and server/client TLS usage, readable by mysql.
+# galera_tls_cert_file: /etc/mysql/tls/node.crt
+
+# Existing unencrypted private key restricted to root and mysql.
+# galera_tls_key_file: /etc/mysql/tls/node.key
+
+# Write-set cache size with a K, M or G suffix.
+galera_gcache_size: 128M
+
+# Preferred donor names separated by commas; a trailing comma permits other donors.
+galera_sst_donor: ''
+# galera_sst_donor: 'db2,db3,'

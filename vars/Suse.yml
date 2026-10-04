@@ -1,0 +1,9 @@
+---
+# role: galera
+# file: vars/Suse.yml
+
+__galera_packages: [galera-4, mariadb-galera]
+__galera_provider: /usr/lib64/libgalera_smm.so
+__galera_config_file: /etc/my.cnf.d/galera.cnf
+__galera_socket: /run/mysql/mysql.sock
+__galera_validate_config: /usr/sbin/mariadbd --defaults-file=%s --verbose --help

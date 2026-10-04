@@ -1,0 +1,24 @@
+---
+# role: galera
+# file: molecule/resources/playbooks/side_effect.yml
+
+- name: GALERA | Exercise rolling changes and restore a stopped member
+  hosts: all
+  gather_facts: true
+  strategy: linear
+  serial: 1
+  any_errors_fatal: true
+  tasks:
+    - name: GALERA | Stop the final member of each cluster
+      become: true
+      become_user: root
+      ansible.builtin.service:
+        name: mariadb
+        state: stopped
+      when: inventory_hostname == groups[group_names[0]][-1]
+
+    - name: GALERA | Apply a changed cache size and restore service
+      ansible.builtin.include_role:
+        name: "{{ lookup('ansible.builtin.env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+      vars:
+        galera_gcache_size: 256M

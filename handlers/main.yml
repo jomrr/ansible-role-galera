@@ -1,0 +1,19 @@
+---
+# role: galera
+# file: handlers/main.yml
+
+- name: GALERA | Reload service manager configuration
+  become: true
+  become_user: root
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  listen: reload systemd
+
+- name: GALERA | Restart the cluster node
+  become: true
+  become_user: root
+  ansible.builtin.service:
+    name: "{{ mariadb_service }}"
+    state: restarted
+  listen: restart galera
+  when: not (galera_bootstrap and not __galera_state.stat.exists)

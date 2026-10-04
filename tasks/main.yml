@@ -1,0 +1,133 @@
+---
+# role: galera
+# file: tasks/main.yml
+
+- name: GALERA | Validate cluster configuration and execution order
+  ansible.builtin.import_tasks: assert.yml
+
+- name: GALERA | Load platform settings
+  ansible.builtin.include_vars: "{{ lookup('ansible.builtin.first_found', __galera_platform_files) }}"
+  vars:
+    __galera_platform_files:
+      files:
+        - "{{ ansible_facts.os_family }}.yml"
+      paths:
+        - "{{ role_path }}/vars"
+
+- name: GALERA | Install state transfer tools before starting MariaDB
+  become: true
+  become_user: root
+  ansible.builtin.package:
+    name: [gawk, openssl, socat]
+    state: present
+
+- name: GALERA | Install and secure MariaDB
+  ansible.builtin.include_role:
+    name: jomrr.mariadb
+    public: true
+
+- name: GALERA | Install replication and state transfer packages
+  become: true
+  become_user: root
+  ansible.builtin.package:
+    name: "{{ __galera_packages }}"
+    state: present
+
+- name: GALERA | Discover the native data directory
+  become: true
+  become_user: root
+  ansible.mariadb.mariadb_query:
+    login_user: root
+    login_unix_socket: "{{ __galera_socket }}"
+    config_file: ''
+    query: SELECT @@datadir AS datadir
+  check_mode: false
+  register: __galera_datadir
+
+- name: GALERA | Inspect the persistent Galera state before initial bootstrap
+  become: true
+  become_user: root
+  ansible.builtin.stat:
+    path: "{{ __galera_datadir.query_result[0][0].datadir }}/grastate.dat"
+    get_checksum: false
+    get_mime: false
+  register: __galera_state
+
+- name: GALERA | Authenticate local state transfers through the Unix socket
+  become: true
+  become_user: root
+  ansible.mariadb.mariadb_user:
+    login_user: root
+    login_unix_socket: "{{ __galera_socket }}"
+    config_file: ''
+    name: mysql
+    host: localhost
+    plugin: unix_socket
+    priv: '*.*:RELOAD,PROCESS,LOCK TABLES,BINLOG MONITOR,REPLICA MONITOR'
+    state: present
+
+- name: GALERA | Configure replication and encrypted state transfers
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: galera.cnf.j2
+    dest: "{{ __galera_config_file }}"
+    owner: root
+    group: mysql
+    mode: '0640'
+    backup: "{{ galera_backup }}"
+    validate: "{{ __galera_validate_config }}"
+  notify: restart galera
+
+- name: GALERA | Integrate the openSUSE bootstrap helper with systemd
+  ansible.builtin.import_tasks: service.yml
+  when: ansible_facts.os_family == 'Suse'
+
+- name: GALERA | Apply service configuration before bootstrap or normal startup
+  ansible.builtin.meta: flush_handlers
+
+- name: GALERA | Initialize the explicitly designated fresh cluster
+  when:
+    - galera_bootstrap
+    - not __galera_state.stat.exists
+  block:
+    - name: GALERA | Stop the standalone server before initial bootstrap
+      become: true
+      become_user: root
+      ansible.builtin.service:
+        name: "{{ mariadb_service }}"
+        state: stopped
+
+    - name: GALERA | Bootstrap the new Primary component
+      become: true
+      become_user: root
+      ansible.builtin.command:
+        argv: [galera_new_cluster]
+        creates: "{{ __galera_datadir.query_result[0][0].datadir }}/grastate.dat"
+
+- name: GALERA | Enable and start the cluster node
+  become: true
+  become_user: root
+  ansible.builtin.service:
+    name: "{{ mariadb_service }}"
+    enabled: true
+    state: started
+
+- name: GALERA | Wait for a synchronized node in the Primary component
+  become: true
+  become_user: root
+  ansible.mariadb.mariadb_query:
+    login_user: root
+    login_unix_socket: "{{ __galera_socket }}"
+    config_file: ''
+    query: >-
+      SELECT VARIABLE_NAME, VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS
+      WHERE (VARIABLE_NAME = 'WSREP_CLUSTER_STATUS' AND VARIABLE_VALUE = 'Primary')
+      OR (VARIABLE_NAME = 'WSREP_LOCAL_STATE_COMMENT' AND VARIABLE_VALUE = 'Synced')
+      OR (VARIABLE_NAME = 'WSREP_READY' AND VARIABLE_VALUE = 'ON')
+      OR (VARIABLE_NAME = 'WSREP_CONNECTED' AND VARIABLE_VALUE = 'ON')
+  register: __galera_ready
+  until: __galera_ready is succeeded and __galera_ready.query_result[0] | length == 4
+  retries: 60
+  delay: 5
+  when: not ansible_check_mode

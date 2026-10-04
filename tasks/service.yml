@@ -1,0 +1,27 @@
+---
+# role: galera
+# file: tasks/service.yml
+
+- name: GALERA | Create the MariaDB service override directory
+  become: true
+  become_user: root
+  ansible.builtin.file:
+    path: /etc/systemd/system/mariadb.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: GALERA | Pass the native bootstrap option to the openSUSE server
+  become: true
+  become_user: root
+  ansible.builtin.template:
+    src: systemd-galera.conf.j2
+    dest: /etc/systemd/system/mariadb.service.d/galera.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: "{{ galera_backup }}"
+  notify:
+    - reload systemd
+    - restart galera
